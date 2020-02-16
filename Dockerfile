@@ -1,3 +1,4 @@
+# Taken from https://github.com/prisma/prisma-examples/blob/prisma2/deployment-platforms/docker/Dockerfile
 
 FROM node:12.4.0
 RUN openssl version -v
