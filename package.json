@@ -28,7 +28,7 @@
     "prettier": "^1.18.2",
     "prisma2": "^2.0.0-preview024",
     "ts-node": "^8.3.0",
-    "ts-node-dev": "^1.0.0-pre.41",
+    "ts-node-dev": "^1.0.0-pre.44",
     "typescript": "^3.7.5"
   },
   "prettier": {
