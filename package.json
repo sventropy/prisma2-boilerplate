@@ -4,8 +4,6 @@
   "version": "0.0.0",
   "main": "dist/main.ts",
   "scripts": {
-    "clean": "rm -rf dist",
-    "build": "yarn -s clean && yarn -s generate && tsc",
     "lint": "prettier 'src/**/*'",
     "lint:fix": "prettier --write 'src/**/*'",
     "start": "ts-node-dev --tree-kill --no-notify --respawn --transpile-only src/main.ts",
