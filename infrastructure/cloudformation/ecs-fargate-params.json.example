@@ -1,0 +1,18 @@
+[
+  {
+    "ParameterKey": "GitHubRepo",
+    "ParameterValue": "typescript-nexus-prisma"
+  },
+  {
+    "ParameterKey": "GitHubBranch",
+    "ParameterValue": "master"
+  },
+  {
+    "ParameterKey": "GitHubToken",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "GitHubUser",
+    "ParameterValue": ""
+  }
+]

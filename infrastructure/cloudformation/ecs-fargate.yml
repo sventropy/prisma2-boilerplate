@@ -1,0 +1,561 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: This stack covers the deployment of the networking configuration for a single VPC with two public subnets, secured by security groups, a single ECS cluster and a single service to run a Dockerized application on FARGATE. A single application load balancer is set up to expose the application to the internet with a static DNS name.
+
+Parameters:
+  DockerImageName:
+    Type: String
+    Default: "my-service"
+
+  # ContainerCpu:
+  #   Type: Number
+  #   Default: 256
+  #   Description: How much CPU to give the container. 1024 is 1 CPU
+
+  # ContainerMemory:
+  #   Type: Number
+  #   Default: 512
+  #   Description: How much memory in megabytes to give the container
+
+  # DesiredCount:
+  #   Type: Number
+  #   Default: 1
+  #   Description: How many copies of the service task to run
+  # DbUser:
+  #   Type: String
+  #   NoEcho: true
+  # DbPassword:
+  #   Type: String
+  #   NoEcho: true
+  # DbPort:
+  #   Type: Number
+
+  # ServicePort:
+  #   Type: Number
+  #   Default: 9222
+
+  GitHubRepo:
+    Type: String
+
+  GitHubBranch:
+    Type: String
+
+  GitHubToken:
+    Type: String
+    NoEcho: true
+
+  GitHubUser:
+    Type: String
+
+  # Mappings:
+  #   SubnetConfig:
+  #     VPC:
+  #       CIDR: "10.0.0.0/16"
+  #     Public1:
+  #       CIDR: "10.0.0.0/24"
+  #     Public2:
+  #       CIDR: "10.0.1.0/24"
+
+Resources:
+  # ECR
+  ImageRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Ref DockerImageName
+      Tags:
+        - Key: cfn-stack
+          Value: !Ref "AWS::StackName"
+
+  # Code Build and Pipeline
+
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - ecr:GetAuthorizationToken
+              - Resource: !Sub arn:aws:s3:::${ArtifactBucket}/*
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:GetObjectVersion
+              - Resource: !Sub arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${DockerImageName}
+                Effect: Allow
+                Action:
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:PutImage
+                  - ecr:InitiateLayerUpload
+                  - ecr:UploadLayerPart
+                  - ecr:CompleteLayerUpload
+
+  CodePipelineServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Resource:
+                  - !Sub arn:aws:s3:::${ArtifactBucket}/*
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:GetBucketVersioning
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - ecs:DescribeServices
+                  - ecs:DescribeTaskDefinition
+                  - ecs:DescribeTasks
+                  - ecs:ListTasks
+                  - ecs:RegisterTaskDefinition
+                  - ecs:UpdateService
+                  - codebuild:StartBuild
+                  - codebuild:BatchGetBuilds
+                  - iam:PassRole
+
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: |
+          version: 0.2
+          phases:
+            pre_build:
+              commands:
+                - $(aws ecr get-login --no-include-email)
+            build:
+              commands:
+                - docker build -t "${IMAGE_NAME}" .
+            post_build:
+              commands:
+                - docker tag "${IMAGE_NAME}:latest" "${REPOSITORY_URI}"
+                - docker push "${REPOSITORY_URI}"
+                - printf '[{"name":"${IMAGE_NAME}","imageUri":"%s"}]' "$REPOSITORY_URI" > images.json
+          artifacts:
+            files: images.json
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/docker:17.09.0
+        Type: LINUX_CONTAINER
+        EnvironmentVariables:
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref AWS::Region
+          - Name: REPOSITORY_URI
+            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${DockerImageName}:latest
+          - Name: IMAGE_NAME
+            Value: !Sub ${DockerImageName}
+      Name: !Ref AWS::StackName
+      ServiceRole: !Ref CodeBuildServiceRole
+
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref ArtifactBucket
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: !Ref DockerImageName
+              ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Version: "1"
+                Provider: GitHub
+              Configuration:
+                Owner: !Ref GitHubUser
+                Repo: !Ref GitHubRepo
+                Branch: !Ref GitHubBranch
+                OAuthToken: !Ref GitHubToken
+              OutputArtifacts:
+                - Name: !Ref DockerImageName
+              RunOrder: 1
+        - Name: Build
+          Actions:
+            - Name: Build
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: "1"
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+              InputArtifacts:
+                - Name: !Ref DockerImageName
+              OutputArtifacts:
+                - Name: BuildOutput
+              RunOrder: 1
+        # - Name: Deploy
+        #   Actions:
+        #     - Name: Deploy
+        #       ActionTypeId:
+        #         Category: Deploy
+        #         Owner: AWS
+        #         Version: "1"
+        #         Provider: ECS
+        #       Configuration:
+        #         ClusterName: !Ref EcsCluster
+        #         ServiceName: !Ref Service
+        #         FileName: images.json
+        #       InputArtifacts:
+        #         - Name: BuildOutput
+        #       RunOrder: 1
+  #   # Roles
+  #   ECSRole:
+  #     Type: AWS::IAM::Role
+  #     Properties:
+  #       AssumeRolePolicyDocument:
+  #         Statement:
+  #           - Effect: Allow
+  #             Principal:
+  #               Service: [ecs.amazonaws.com]
+  #             Action: ["sts:AssumeRole"]
+  #       Path: /
+  #       Policies:
+  #         - PolicyName: "ecs-my-service-policy"
+  #           PolicyDocument:
+  #             Statement:
+  #               - Effect: Allow
+  #                 Action:
+  #                   - "ec2:AttachNetworkInterface"
+  #                   - "ec2:CreateNetworkInterface"
+  #                   - "ec2:CreateNetworkInterfacePermission"
+  #                   - "ec2:DeleteNetworkInterface"
+  #                   - "ec2:DeleteNetworkInterfacePermission"
+  #                   - "ec2:Describe*"
+  #                   - "ec2:DetachNetworkInterface"
+  #                   - "elasticloadbalancing:DeregisterInstancesFromLoadBalancer"
+  #                   - "elasticloadbalancing:DeregisterTargets"
+  #                   - "elasticloadbalancing:Describe*"
+  #                   - "elasticloadbalancing:RegisterInstancesWithLoadBalancer"
+  #                   - "elasticloadbalancing:RegisterTargets"
+  #                 Resource: "*"
+  #       Tags:
+  #         - Key: cfn-stack
+  #           Value: !Ref AWS::StackName
+  #   ECSTaskExecutionRole:
+  #     Type: AWS::IAM::Role
+  #     Properties:
+  #       AssumeRolePolicyDocument:
+  #         Statement:
+  #           - Effect: Allow
+  #             Principal:
+  #               Service: [ecs-tasks.amazonaws.com]
+  #             Action: ["sts:AssumeRole"]
+  #       Path: /
+  #       Policies:
+  #         - PolicyName: "ecs-my-task-exec-policy"
+  #           PolicyDocument:
+  #             Statement:
+  #               - Effect: Allow
+  #                 Action:
+  #                   - "ecr:GetAuthorizationToken"
+  #                   - "ecr:BatchCheckLayerAvailability"
+  #                   - "ecr:GetDownloadUrlForLayer"
+  #                   - "ecr:BatchGetImage"
+  #                   - "logs:CreateLogStream"
+  #                   - "logs:PutLogEvents"
+  #                   - "ssm:GetParameters"
+  #                 Resource: "*"
+  #       Tags:
+  #         - Key: cfn-stack
+  #           Value: !Ref "AWS::StackName"
+  # Networking
+  # This is taken from the ecs-fargate-cluster example template: https://github.com/awslabs/aws-cloudformation-templates/blob/master/aws/services/ECS/FargateLaunchType/clusters/public-vpc.yml
+  # VPC:
+  #   Type: AWS::EC2::VPC
+  #   Properties:
+  #     CidrBlock: !FindInMap ["SubnetConfig", "VPC", "CIDR"]
+  #     InstanceTenancy: default
+  #     EnableDnsSupport: true
+  #     EnableDnsHostnames: true
+  #     Tags:
+  #       - Key: cfn-stack
+  #         Value: !Ref "AWS::StackName"
+  # Subnet1:
+  #   Type: AWS::EC2::Subnet
+  #   Properties:
+  #     CidrBlock: !FindInMap ["SubnetConfig", "Public1", "CIDR"]
+  #     VpcId:
+  #       Ref: VPC
+  #     AvailabilityZone:
+  #       Fn::Select:
+  #         - 0
+  #         - Fn::GetAZs: { Ref: "AWS::Region" }
+  #     Tags:
+  #       - Key: cfn-stack
+  #         Value: !Ref "AWS::StackName"
+  # Subnet2:
+  #   Type: AWS::EC2::Subnet
+  #   Properties:
+  #     CidrBlock: !FindInMap ["SubnetConfig", "Public2", "CIDR"]
+  #     VpcId:
+  #       Ref: VPC
+  #     AvailabilityZone:
+  #       Fn::Select:
+  #         - 1
+  #         - Fn::GetAZs: { Ref: "AWS::Region" }
+  #     Tags:
+  #       - Key: cfn-stack
+  #         Value: !Ref "AWS::StackName"
+  # InternetGateway:
+  #   Type: AWS::EC2::InternetGateway
+  #   Properties:
+  #     Tags:
+  #       - Key: cfn-stack
+  #         Value: !Ref "AWS::StackName"
+  # GatewayAttachement:
+  #   Type: AWS::EC2::VPCGatewayAttachment
+  #   Properties:
+  #     VpcId: !Ref "VPC"
+  #     InternetGatewayId: !Ref "InternetGateway"
+  # PublicRouteTable:
+  #   Type: AWS::EC2::RouteTable
+  #   Properties:
+  #     VpcId: !Ref "VPC"
+  #     Tags:
+  #       - Key: cfn-stack
+  #         Value: !Ref "AWS::StackName"
+  # PublicRoute:
+  #   Type: AWS::EC2::Route
+  #   DependsOn: GatewayAttachement
+  #   Properties:
+  #     RouteTableId: !Ref "PublicRouteTable"
+  #     DestinationCidrBlock: "0.0.0.0/0"
+  #     GatewayId: !Ref "InternetGateway"
+  # PublicSubnet1RouteTableAssociation:
+  #   Type: AWS::EC2::SubnetRouteTableAssociation
+  #   Properties:
+  #     SubnetId: !Ref Subnet1
+  #     RouteTableId: !Ref PublicRouteTable
+  # PublicSubnet2RouteTableAssociation:
+  #   Type: AWS::EC2::SubnetRouteTableAssociation
+  #   Properties:
+  #     SubnetId: !Ref Subnet2
+  #     RouteTableId: !Ref PublicRouteTable
+  # Database
+  # RDSSecurityGroup:
+  #   Type: AWS::EC2::SecurityGroup
+  #   Properties:
+  #     GroupDescription: Security group to manage access to the RDS database
+  #     VpcId: !Ref VPC
+  #     Tags:
+  #       - Key: cfn-stack
+  #         Value: !Ref "AWS::StackName"
+  # RDSSubnetGroup:
+  #   Type: AWS::RDS::DBSubnetGroup
+  #   Properties:
+  #     DBSubnetGroupDescription: Logical group of both public subnets to be used by the RDS database
+  #     SubnetIds:
+  #       - Ref: Subnet1
+  #       - Ref: Subnet2
+  #     Tags:
+  #       - Key: cfn-stack
+  #         Value: !Ref "AWS::StackName"
+  # RDSCluster:
+  #   Type: AWS::RDS::DBCluster
+  #   Properties:
+  #     MasterUsername: !Ref DbUser
+  #     MasterUserPassword: !Ref DbPassword
+  #     Engine: aurora # this means mysql 5.6
+  #     EngineMode: serverless
+  #     Port: !Ref DbPort
+  #     ScalingConfiguration:
+  #       AutoPause: true
+  #       MaxCapacity: 2
+  #       MinCapacity: 2 # 4GB, 0.06$ per hour
+  #       SecondsUntilAutoPause: 300
+  #     BackupRetentionPeriod: 3 #days
+  #     DBSubnetGroupName: !Ref RDSSubnetGroup
+  #     VpcSecurityGroupIds:
+  #       - !GetAtt RDSSecurityGroup.GroupId
+  #     Tags:
+  #       - Key: cfn-stack
+  #         Value: !Ref "AWS::StackName"
+  # Load Balancing
+  # SecurityGroupLoadBalancer:
+  #   Type: AWS::EC2::SecurityGroup
+  #   Properties:
+  #     GroupDescription: Access to the internet facing load balancer
+  #     VpcId: !Ref VPC
+  #     SecurityGroupIngress:
+  #       # Allow access to ALB from anywhere on the internet
+  #       - CidrIp: 0.0.0.0/0
+  #         IpProtocol: "-1"
+  #     Tags:
+  #       - Key: cfn-stack
+  #         Value: !Ref "AWS::StackName"
+  # LoadBalancer:
+  #   Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+  #   Properties:
+  #     Scheme: internet-facing
+  #     LoadBalancerAttributes:
+  #       - Key: idle_timeout.timeout_seconds
+  #         Value: "30"
+  #     Subnets:
+  #       - !Ref Subnet1
+  #       - !Ref Subnet2
+  #     SecurityGroups: [!Ref "SecurityGroupLoadBalancer"]
+  #     Tags:
+  #       - Key: cfn-stack
+  #         Value: !Ref "AWS::StackName"
+  # ECS
+  # EcsCluster:
+  #   Type: AWS::ECS::Cluster
+  #   Properties:
+  #     Tags:
+  #       - Key: cfn-stack
+  #         Value: !Ref "AWS::StackName"
+  # SecurityGroupEcs:
+  #   Type: AWS::EC2::SecurityGroup
+  #   Properties:
+  #     GroupDescription: The security group to limit access to the dockerized app running based on Fargate,
+  #     VpcId: !Ref VPC
+  #     Tags:
+  #       - Key: cfn-stack
+  #         Value: !Ref "AWS::StackName"
+  # SecurityGroupApiIngressFromInternetFacingALB:
+  #   Type: AWS::EC2::SecurityGroupIngress
+  #   Properties:
+  #     Description: Ingress from the internet facing ALB. Ensures access to the service from the application load balancer.
+  #     GroupId: !Ref SecurityGroupEcs
+  #     SourceSecurityGroupId: !Ref SecurityGroupLoadBalancer
+  #     IpProtocol: "-1" # All protocols
+  # SecurityGroupRdsIngressFromApi:
+  #   Type: AWS::EC2::SecurityGroupIngress
+  #   Properties:
+  #     Description: Ingress from the service security group. Ensures access to the DB from the service.
+  #     GroupId: !Ref RDSSecurityGroup
+  #     SourceSecurityGroupId: !Ref SecurityGroupEcs
+  #     IpProtocol: "tcp"
+  #     FromPort: !Ref DbPort
+  #     ToPort: !Ref DbPort
+  # TaskDefinition:
+  #   Type: AWS::ECS::TaskDefinition
+  #   Properties:
+  #     Family:
+  #       Fn::Join:
+  #         - "-"
+  #         - - my
+  #           - service
+  #           - taskdefinition
+  #     Cpu: !Ref ContainerCpu
+  #     Memory: !Ref ContainerMemory
+  #     NetworkMode: awsvpc
+  #     RequiresCompatibilities:
+  #       - FARGATE
+  #     TaskRoleArn: !GetAtt ECSRole.Arn
+  #     ExecutionRoleArn: !GetAtt ECSTaskExecutionRole.Arn
+  #     ContainerDefinitions:
+  #       - Cpu: !Ref "ContainerCpu"
+  #         Memory: !Ref "ContainerMemory"
+  #         Name: my-service-container
+  #         Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/ecr/my/image:latest"
+  #         PortMappings:
+  #           - ContainerPort: !Ref ServicePort
+  #         LogConfiguration:
+  #           LogDriver: "awslogs"
+  #           Options:
+  #             awslogs-group: !Ref "AWS::StackName"
+  #             awslogs-region: !Ref AWS::Region
+  #             awslogs-stream-prefix: "/ecs/my/service"
+  #     Tags:
+  #       - Key: cfn-stack
+  #         Value: !Ref "AWS::StackName"
+  # Service:
+  #   Type: AWS::ECS::Service
+  #   DependsOn:
+  #     - PublicLoadBalancerListener
+  #   Properties:
+  #     Cluster: !Ref EcsCluster
+  #     LaunchType: FARGATE
+  #     DeploymentConfiguration:
+  #       MaximumPercent: 200
+  #       MinimumHealthyPercent: 75
+  #     DesiredCount: !Ref "DesiredCount"
+  #     LoadBalancers:
+  #       - ContainerPort: !Ref ServicePort
+  #         ContainerName: my-service-container
+  #         TargetGroupArn: !Ref TargetGroup
+  #     NetworkConfiguration:
+  #       AwsvpcConfiguration:
+  #         SecurityGroups:
+  #           - !Ref SecurityGroupEcs
+  #         AssignPublicIp: ENABLED
+  #         Subnets:
+  #           - !Ref Subnet1
+  #           - !Ref Subnet2
+  #     TaskDefinition: !Ref TaskDefinition
+  #     Tags:
+  #       - Key: cfn-stack
+  #         Value: !Ref "AWS::StackName"
+  # TargetGroup:
+  #   Type: AWS::ElasticLoadBalancingV2::TargetGroup
+  #   Properties:
+  #     HealthCheckIntervalSeconds: 60
+  #     HealthCheckPath: /status
+  #     HealthCheckProtocol: HTTP
+  #     HealthCheckTimeoutSeconds: 15
+  #     HealthyThresholdCount: 3
+  #     Port: !Ref ServicePort
+  #     Protocol: HTTP
+  #     UnhealthyThresholdCount: 3
+  #     VpcId: !Ref VPC
+  #     TargetType: "ip"
+  #     Tags:
+  #       - Key: cfn-stack
+  #         Value: !Ref "AWS::StackName"
+  # PublicLoadBalancerListener:
+  #   Type: AWS::ElasticLoadBalancingV2::Listener
+  #   Properties:
+  #     DefaultActions:
+  #       - TargetGroupArn: !Ref TargetGroup
+  #         Type: "forward"
+  #     LoadBalancerArn: !Ref LoadBalancer
+  #     Port: !Ref ServicePort
+  #     Protocol: HTTP
+  # LogsGroup:
+  #   Type: "AWS::Logs::LogGroup"
+  #   Properties:
+  #     LogGroupName: !Ref "AWS::StackName"
+  #     RetentionInDays: 7
