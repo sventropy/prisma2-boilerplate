@@ -19,4 +19,9 @@ The `ecs-fargate.yml` template, creates a stack containing:
 - A single ECS cluster
 - A single ECS service and task definition of launch type FARGATE
 - A code pipeline, building a Docker image based on `./Dockerfile` and deploying it to ECS Fargate
+- A single ECR repository to contain the built image
+
+To deploy, copy the `./infrastructure/cloudformation/ecs-fargate-params.json.example` to `./infrastructure/cloudformation/ecs-fargate-params.json`, fill in the required values, and run `make create-fargate`. 
+
+⚠️ First deployments will probably fail, due to race-conditions betweens the pipeline, the service and the availability of a built Docker image in the ECR repository. Try commenting service and deploy stage of the pipeline during creation, wait for the first build to complete, uncomment again und run `make update-fargate`, to work around this issue.
 
