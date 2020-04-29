@@ -1,4 +1,6 @@
-# GraphQL backend boilerplate based on `prisma2`, `typescript` and `graphql-nexus`
+# prisma2-boilerplate
+
+This is a graphQL backend boilerplate based on `prisma2`, `typescript` and `graphql-nexus`.
 
 ## Prisma2 Template
 
