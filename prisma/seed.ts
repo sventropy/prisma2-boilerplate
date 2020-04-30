@@ -13,5 +13,17 @@ async function main() {
       items: { create: [{ title: lorem.slug(), type: ItemType.B }] },
     },
   });
+  await prisma.header.create({
+    data: {
+      title: lorem.slug(),
+      items: { create: [{ title: lorem.slug(), type: ItemType.A }] },
+    },
+  });
+  await prisma.header.create({
+    data: {
+      title: lorem.slug(),
+      items: { create: [{ title: lorem.slug(), type: ItemType.B }] },
+    },
+  });
   await prisma.disconnect();
 }
