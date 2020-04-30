@@ -11,12 +11,26 @@
       ]
     },
     {
-      "tag": "DeleteEnum",
-      "enum": "UserRole"
+      "tag": "CreateSource",
+      "source": "db"
     },
     {
-      "tag": "DeleteEnum",
-      "enum": "PostStatus"
+      "tag": "CreateArgument",
+      "location": {
+        "tag": "Source",
+        "source": "db"
+      },
+      "argument": "provider",
+      "value": "\"postgresql\""
+    },
+    {
+      "tag": "CreateArgument",
+      "location": {
+        "tag": "Source",
+        "source": "db"
+      },
+      "argument": "url",
+      "value": "\"postgres://postgres:dbsecret@localhost:5432/postgres?schema=public\""
     },
     {
       "tag": "CreateModel",
@@ -28,17 +42,6 @@
       "field": "id",
       "type": "Int",
       "arity": "Required"
-    },
-    {
-      "tag": "CreateDirective",
-      "location": {
-        "path": {
-          "tag": "Field",
-          "model": "Header",
-          "field": "id"
-        },
-        "directive": "id"
-      }
     },
     {
       "tag": "CreateDirective",
@@ -64,6 +67,17 @@
       },
       "argument": "",
       "value": "autoincrement()"
+    },
+    {
+      "tag": "CreateDirective",
+      "location": {
+        "path": {
+          "tag": "Field",
+          "model": "Header",
+          "field": "id"
+        },
+        "directive": "id"
+      }
     },
     {
       "tag": "CreateField",
@@ -148,17 +162,6 @@
           "model": "Item",
           "field": "id"
         },
-        "directive": "id"
-      }
-    },
-    {
-      "tag": "CreateDirective",
-      "location": {
-        "path": {
-          "tag": "Field",
-          "model": "Item",
-          "field": "id"
-        },
         "directive": "default"
       }
     },
@@ -175,6 +178,17 @@
       },
       "argument": "",
       "value": "autoincrement()"
+    },
+    {
+      "tag": "CreateDirective",
+      "location": {
+        "path": {
+          "tag": "Field",
+          "model": "Item",
+          "field": "id"
+        },
+        "directive": "id"
+      }
     },
     {
       "tag": "CreateField",
@@ -241,20 +255,11 @@
       "arity": "Required"
     },
     {
-      "tag": "DeleteModel",
-      "model": "Blog"
-    },
-    {
-      "tag": "DeleteModel",
-      "model": "User"
-    },
-    {
-      "tag": "DeleteModel",
-      "model": "Post"
-    },
-    {
-      "tag": "DeleteModel",
-      "model": "Tag"
+      "tag": "CreateField",
+      "model": "Item",
+      "field": "headerId",
+      "type": "Int",
+      "arity": "Optional"
     }
   ]
 }

@@ -1,30 +1,29 @@
 {
-  "name": "example",
+  "name": "service",
   "private": true,
-  "version": "0.0.0",
-  "main": "dist/main.ts",
+  "version": "0.0.1",
+  "main": "src/main.ts",
   "scripts": {
     "lint": "prettier 'src/**/*'",
     "lint:fix": "prettier --write 'src/**/*'",
-    "start": "ts-node-dev --tree-kill --no-notify --respawn --transpile-only src/main.ts",
+    "start": "npx env-cmd ts-node-dev --tree-kill --no-notify --respawn --transpile-only src/main.ts",
     "start:prod": "ts-node --transpile-only src/main.ts",
-    "migrate": "npx prisma2 migrate save --experimental -c && prisma2 migrate up --experimental -c",
-    "generate": "npx -s generate:prisma && npx -s generate:nexus",
-    "generate:prisma": "npx prisma2 generate",
-    "generate:nexus": "NODE_ENV=development ts-node --transpile-only src/schema",
-    "seed": "ts-node prisma/seed.ts"
+    "migrate": "npx env-cmd npx prisma migrate save --experimental && npx env-cmd npx prisma migrate up --experimental",
+    "generate": "npx env-cmd npx prisma generate && npx env-cmd ts-node --transpile-only src/schema",
+    "seed": "npx env-cmd ts-node prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "^2.0.0-previewnull-1",
+    "@prisma/client": "^2.0.0-beta.2",
     "graphql": "^14.3.1",
     "graphql-yoga": "^1.18.2",
     "nexus": "^0.12.0-rc.13",
     "nexus-prisma": "^0.11.1"
   },
   "devDependencies": {
-    "@prisma/cli": "^2.0.0-beta.3",
+    "@prisma/cli": "^2.0.0-beta.2",
     "@types/faker": "^4.1.5",
     "@types/ws": "^7.2.0",
+    "env-cmd": "^10.1.0",
     "faker": "^4.1.0",
     "prettier": "^1.18.2",
     "ts-node": "^8.3.0",

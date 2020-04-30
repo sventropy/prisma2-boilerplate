@@ -1,5 +1,5 @@
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url = "***"
 }
 
@@ -8,7 +8,7 @@ generator prisma_client {
 }
 
 model Header {
-  id        Int      @id @default(autoincrement())
+  id        Int      @default(autoincrement()) @id
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   title     String
@@ -16,11 +16,12 @@ model Header {
 }
 
 model Item {
-  id        Int      @id @default(autoincrement())
+  id        Int      @default(autoincrement()) @id
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   title     String?
   type      ItemType
+  headerId  Int?
 }
 
 enum ItemType {

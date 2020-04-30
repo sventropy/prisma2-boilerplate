@@ -9,8 +9,8 @@ WORKDIR /opt/app
 
 USER root
 
-RUN rm -rf node_modules && npm i -g --unsafe-perm prisma2@latest && npm install && chown -R node /opt/app
-RUN prisma2 generate
+RUN rm -rf node_modules && npm i -g --unsafe-perm prisma@latest && npm install && chown -R node /opt/app
+RUN prisma generate
 
 USER node
 

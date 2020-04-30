@@ -16,7 +16,12 @@ async function main() {
   await prisma.header.create({
     data: {
       title: lorem.slug(),
-      items: { create: [{ title: lorem.slug(), type: ItemType.A }] },
+      items: {
+        create: [
+          { title: lorem.slug(), type: ItemType.A },
+          { title: lorem.slug(), type: ItemType.C },
+        ],
+      },
     },
   });
   await prisma.header.create({

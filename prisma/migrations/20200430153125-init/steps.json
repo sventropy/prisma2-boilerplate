@@ -1,0 +1,14 @@
+{
+  "version": "0.3.14-fixed",
+  "steps": [
+    {
+      "tag": "UpdateArgument",
+      "location": {
+        "tag": "Source",
+        "source": "db"
+      },
+      "argument": "url",
+      "newValue": "\"postgres://postgres:dbsecret@0.0.0.0:5432/postgres?schema=public\""
+    }
+  ]
+}
