@@ -2,7 +2,7 @@
 
 This is a graphQL backend boilerplate based on `prisma2`, `typescript` and `graphql-nexus`.
 
-For more information on prisma, go to https://github.com/prisma/prisma. This boilerplate is based on the `nexus-prisma` [examples](https://github.com/prisma-labs/nexus-prisma/tree/master/examples).
+For more information on prisma, check [their project](https://github.com/prisma/prisma). This boilerplate is based on the `nexus-prisma` [examples](https://github.com/prisma-labs/nexus-prisma/tree/master/examples).
 
 ## How to... ❔
 
