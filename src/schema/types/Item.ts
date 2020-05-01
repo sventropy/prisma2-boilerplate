@@ -1,4 +1,10 @@
-import { objectType } from "nexus";
+import { objectType, FieldResolver } from "nexus";
+
+const grossAmountResolver: FieldResolver<"Item", "grossAmount"> = ({
+  netAmount,
+}) => {
+  return +(netAmount * 1.19).toFixed(2);
+};
 
 export const Item = objectType({
   name: "Item",
@@ -8,5 +14,7 @@ export const Item = objectType({
     t.model.type();
     t.model.createdAt();
     t.model.updatedAt();
+    t.model.netAmount();
+    t.field("grossAmount", { type: "Float", resolve: grossAmountResolver });
   },
 });

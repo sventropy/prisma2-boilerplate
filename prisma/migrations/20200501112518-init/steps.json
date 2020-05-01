@@ -30,7 +30,7 @@
         "source": "db"
       },
       "argument": "url",
-      "value": "\"postgres://postgres:dbsecret@localhost:5432/postgres?schema=public\""
+      "value": "\"postgres://postgres:dbsecret@0.0.0.0:5432/postgres?schema=public\""
     },
     {
       "tag": "CreateModel",
@@ -252,6 +252,13 @@
       "model": "Item",
       "field": "type",
       "type": "ItemType",
+      "arity": "Required"
+    },
+    {
+      "tag": "CreateField",
+      "model": "Item",
+      "field": "netAmount",
+      "type": "Float",
       "arity": "Required"
     },
     {

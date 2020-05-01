@@ -21,6 +21,7 @@ model Item {
   updatedAt DateTime @updatedAt
   title     String?
   type      ItemType
+  netAmount Float
   headerId  Int?
 }
 

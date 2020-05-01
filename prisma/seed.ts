@@ -1,5 +1,5 @@
 import { PrismaClient, ItemType } from "@prisma/client";
-import { lorem } from "faker";
+import { lorem, finance } from "faker";
 
 main().catch(e => {
   console.error(e);
@@ -10,16 +10,13 @@ async function main() {
   await prisma.header.create({
     data: {
       title: lorem.slug(),
-      items: { create: [{ title: lorem.slug(), type: ItemType.B }] },
-    },
-  });
-  await prisma.header.create({
-    data: {
-      title: lorem.slug(),
       items: {
         create: [
-          { title: lorem.slug(), type: ItemType.A },
-          { title: lorem.slug(), type: ItemType.C },
+          {
+            title: lorem.slug(),
+            type: ItemType.B,
+            netAmount: +finance.amount(),
+          },
         ],
       },
     },
@@ -27,7 +24,34 @@ async function main() {
   await prisma.header.create({
     data: {
       title: lorem.slug(),
-      items: { create: [{ title: lorem.slug(), type: ItemType.B }] },
+      items: {
+        create: [
+          {
+            title: lorem.slug(),
+            type: ItemType.A,
+            netAmount: +finance.amount(),
+          },
+          {
+            title: lorem.slug(),
+            type: ItemType.C,
+            netAmount: +finance.amount(),
+          },
+        ],
+      },
+    },
+  });
+  await prisma.header.create({
+    data: {
+      title: lorem.slug(),
+      items: {
+        create: [
+          {
+            title: lorem.slug(),
+            type: ItemType.B,
+            netAmount: +finance.amount(),
+          },
+        ],
+      },
     },
   });
   await prisma.disconnect();
