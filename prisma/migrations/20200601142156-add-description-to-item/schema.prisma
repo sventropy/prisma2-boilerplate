@@ -1,6 +1,6 @@
 datasource db {
     provider = "postgresql"
-    url      = "postgres://postgres:dbsecret@0.0.0.0:5432/postgres?schema=public"
+    url = "***"
 }
 
 generator prisma_client {

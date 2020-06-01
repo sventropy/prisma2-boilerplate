@@ -27,6 +27,7 @@ const permissions = shield(
     },
     Mutation: {
       "*": isAuthenticated,
+      addHeaderWithItem: allow,
     },
   },
   {
