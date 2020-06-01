@@ -13,7 +13,9 @@ For more information on prisma, check [their project](https://github.com/prisma/
 3. Copy `.env.example` to `.env`
 4. Maintain DB url in prisma file (see [this section](#dockerfile-%f0%9f%90%b3) why)
 5. `docker-compose up`
-6. `npm start`
+6. `npm run migrate` to apply DB schema
+7. (Optional) `npm run seed` to generate test data
+8. `npm start`
 
 ## Database #
 
