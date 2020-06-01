@@ -1,32 +1,33 @@
 datasource db {
-  provider = "postgresql"
-  url      = "postgres://postgres:dbsecret@0.0.0.0:5432/postgres?schema=public"
+    provider = "postgresql"
+    url      = "postgres://postgres:dbsecret@0.0.0.0:5432/postgres?schema=public"
 }
 
 generator prisma_client {
-  provider = "prisma-client-js"
+    provider = "prisma-client-js"
 }
 
 model Header {
-  id        Int      @default(autoincrement()) @id
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  title     String
-  items     Item[]
+    id        Int      @default(autoincrement()) @id
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    title     String
+    items     Item[]
 }
 
 model Item {
-  id        Int      @default(autoincrement()) @id
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  title     String?
-  type      ItemType
-  netAmount Float
-  headerId  Int?
+    id        Int      @default(autoincrement()) @id
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    title     String?
+    type      ItemType
+    netAmount Float
+    headerId  Int?
+    Header    Header?  @relation(fields: [headerId], references: [id])
 }
 
 enum ItemType {
-  A
-  B
-  C
+    A
+    B
+    C
 }
