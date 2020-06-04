@@ -16,5 +16,6 @@ export const Item = objectType({
     t.model.updatedAt();
     t.model.netAmount();
     t.field("grossAmount", { type: "Float", resolve: grossAmountResolver });
+    t.model.description();
   },
 });

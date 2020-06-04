@@ -6,10 +6,10 @@
 import { ItemType } from "./../../graphql/globalTypes";
 
 // ====================================================
-// GraphQL query operation: HeaderItemQuery
+// GraphQL mutation operation: AddHeaderWithItem
 // ====================================================
 
-export interface HeaderItemQuery_headers_items {
+export interface AddHeaderWithItem_addHeaderWithItem_items {
   __typename: "Item";
   title: string | null;
   type: ItemType;
@@ -17,12 +17,12 @@ export interface HeaderItemQuery_headers_items {
   description: string | null;
 }
 
-export interface HeaderItemQuery_headers {
+export interface AddHeaderWithItem_addHeaderWithItem {
   __typename: "Header";
   title: string;
-  items: HeaderItemQuery_headers_items[];
+  items: AddHeaderWithItem_addHeaderWithItem_items[];
 }
 
-export interface HeaderItemQuery {
-  headers: HeaderItemQuery_headers[];
+export interface AddHeaderWithItem {
+  addHeaderWithItem: AddHeaderWithItem_addHeaderWithItem;
 }
